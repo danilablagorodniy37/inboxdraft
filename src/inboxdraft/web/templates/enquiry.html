@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}{{ enquiry.subject }} · inboxdraft{% endblock %}
+{% block content %}
+<p class="crumbs"><a href="/">&larr; Inbox</a></p>
+<div class="three">
+  <section class="card">
+    <h2>Enquiry</h2>
+    <dl class="meta">
+      <dt>From</dt><dd>{{ enquiry.from_name }} &lt;{{ enquiry.from_email }}&gt;</dd>
+      <dt>Subject</dt><dd>{{ enquiry.subject }}</dd>
+      <dt>Received</dt><dd>{{ enquiry.received_at|dt }}</dd>
+    </dl>
+    <pre class="mail">{{ enquiry.body }}</pre>
+    {% if enquiry.scrubbed_body is not none %}
+    <details class="model-view" open>
+      <summary>
+        <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="10" width="16" height="11" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8 10V7a4 4 0 0 1 8 0v3" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
+        What the model saw
+      </summary>
+      <p class="explain">Personal details were replaced with placeholders before any text left this server. The map back to the real values lived in memory for one request and was not stored.</p>
+      <p><b>Subject:</b> {{ enquiry.scrubbed_subject|tokens }}</p>
+      <pre class="mail">{{ enquiry.scrubbed_body|tokens }}</pre>
+    </details>
+    {% endif %}
+  </section>
+
+  <section class="card" id="draft-panel">
+    {% include "_draft.html" %}
+  </section>
+
+  <section class="card">
+    <h2>Sources <small class="muted">{{ enquiry.sources|length }} retrieved</small></h2>
+    {% if enquiry.sources %}
+    <ol class="sources">
+      {% for s in enquiry.sources %}
+      <li class="{% if s.rank in enquiry.citations %}used{% endif %}">
+        <div class="src-head">
+          <span class="src-n">[{{ s.rank }}]</span>
+          <span class="src-label">{{ s.chunk.label }}</span>
+          {% if s.rank in enquiry.citations %}<span class="tag ok">cited</span>{% endif %}
+          <span class="src-score" title="cosine similarity"><span class="bar"><i style="width:{{ (s.score * 100)|round }}%"></i></span>{{ '%.2f'|format(s.score) }}</span>
+        </div>
+        <pre class="src-text">{{ s.chunk.text }}</pre>
+      </li>
+      {% endfor %}
+    </ol>
+    {% else %}
+    <p class="muted">No sources yet. Press <b>Draft</b> to classify the enquiry and retrieve the relevant sections.</p>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

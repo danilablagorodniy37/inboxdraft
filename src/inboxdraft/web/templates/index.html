@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Inbox · inboxdraft{% endblock %}
+{% block content %}
+<div class="toolbar">
+  <h1>{% if filter_status %}{{ filter_status|capitalize }}{% else %}Inbox{% endif %}
+    <small>{{ enquiries|length }} enquir{{ 'y' if enquiries|length == 1 else 'ies' }}</small></h1>
+  <div class="actions">
+    <form method="post" action="/import"><button class="btn">Import inbox</button></form>
+    <form method="post" action="/process"><button class="btn primary" {% if counts.new == 0 %}disabled{% endif %}>Draft {{ counts.new }} new</button></form>
+  </div>
+</div>
+
+{% if enquiries %}
+<table class="list">
+  <thead>
+    <tr><th>Received</th><th>From</th><th>Subject</th><th>Category</th><th>Status</th><th>Confidence</th><th class="num">Cost</th></tr>
+  </thead>
+  <tbody>
+  {% for e in enquiries %}
+    {% set level = 'high' if e.confidence is not none and e.confidence >= 0.8 else ('low' if e.confidence is not none and e.confidence < settings.confidence_threshold else 'mid') %}
+    <tr onclick="window.location='/enquiries/{{ e.id }}'">
+      <td class="muted small">{{ e.received_at|dt }}</td>
+      <td>{{ e.from_name or e.from_email }}</td>
+      <td class="subject"><a href="/enquiries/{{ e.id }}">{{ e.subject or '(no subject)' }}</a></td>
+      <td>{% if e.category %}<span class="tag">{{ e.category }}</span>{% endif %}{% if e.needs_human %} <span class="tag warn">person first</span>{% endif %}</td>
+      <td><span class="chip {{ e.status }}">{{ e.status }}</span></td>
+      <td>{% if e.confidence is not none %}<span class="bar {{ level }}" title="{{ e.confidence|pct }}"><i style="width:{{ (e.confidence * 100)|round }}%"></i></span><span class="small">{{ e.confidence|pct }}</span>{% endif %}</td>
+      <td class="num cost muted">{{ e.cost_usd|usd if e.cost_usd is not none else '' }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="empty">
+  <p><b>No enquiries yet.</b></p>
+  <p class="muted">Put <code>.eml</code> files into <code>{{ settings.inbox_dir }}/</code> (or set IMAP in <code>.env</code>), then press <b>Import inbox</b> and <b>Draft new</b>.</p>
+</div>
+{% endif %}
+{% endblock %}

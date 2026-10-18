@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}inboxdraft{% endblock %}</title>
+  <link rel="icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><rect x='2' y='4' width='20' height='16' rx='4' fill='%232457c5'/><path d='M4 8l8 6 8-6' stroke='white' stroke-width='2' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>">
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="https://unpkg.com/htmx.org@2.0.4/dist/htmx.min.js" defer></script>
+</head>
+<body>
+<header class="top">
+  <div class="top-inner">
+    <a class="brand" href="/">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="4" fill="#2457c5"/><path d="M4 8l8 6 8-6" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <b>inbox<span>draft</span></b>
+    </a>
+    <span class="firm">{{ settings.firm_name }}</span>
+    <nav class="counts">
+      <a href="/" class="{% if not filter_status %}on{% endif %}">All</a>
+      <a href="/?status=new" class="chip new {% if filter_status == 'new' %}on{% endif %}">New {{ counts.new }}</a>
+      <a href="/?status=drafted" class="chip drafted {% if filter_status == 'drafted' %}on{% endif %}">Drafted {{ counts.drafted }}</a>
+      <a href="/?status=escalated" class="chip escalated {% if filter_status == 'escalated' %}on{% endif %}">Escalated {{ counts.escalated }}</a>
+      <a href="/?status=sent" class="chip sent {% if filter_status == 'sent' %}on{% endif %}">Sent {{ counts.sent }}</a>
+    </nav>
+    <div class="right">
+      {% if settings.demo_mode %}<span class="badge demo">DEMO DATA</span>{% endif %}
+      <span class="model" title="draft model">{{ draft_model }}</span>
+    </div>
+  </div>
+</header>
+<main class="wrap">
+{% block content %}{% endblock %}
+</main>
+<footer class="foot">inboxdraft {{ version }} · drafts from your own documents, a person sends every email · index: {{ embedder }}</footer>
+</body>
+</html>

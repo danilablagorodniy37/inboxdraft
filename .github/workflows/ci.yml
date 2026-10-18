@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    name: lint and test (SQLite, fake model)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: python -m pip install -e ".[dev]"
+      - run: python scripts/check_secrets.py
+      - run: ruff check .
+      - run: ruff format --check .
+      - run: pytest -q
+
+  test-postgres:
+    name: retrieval on PostgreSQL + pgvector
+    runs-on: ubuntu-latest
+    services:
+      db:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_USER: inboxdraft
+          POSTGRES_PASSWORD: inboxdraft
+          POSTGRES_DB: inboxdraft
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U inboxdraft -d inboxdraft"
+          --health-interval 5s --health-timeout 3s --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: python -m pip install -e ".[dev]"
+      - run: pytest -q -m pg
+        env:
+          TEST_DATABASE_URL: postgresql+psycopg://inboxdraft:inboxdraft@localhost:5432/inboxdraft

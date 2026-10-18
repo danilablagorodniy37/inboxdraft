@@ -1,0 +1,64 @@
+{% set level = 'high' if enquiry.confidence is not none and enquiry.confidence >= 0.8 else ('low' if enquiry.confidence is not none and enquiry.confidence < settings.confidence_threshold else 'mid') %}
+<div class="draft-head">
+  <h2>Draft</h2>
+  <div class="chips">
+    <span class="chip {{ enquiry.status }}">{{ enquiry.status }}</span>
+    {% if enquiry.category %}<span class="tag">{{ enquiry.category }}</span>{% endif %}
+    {% if enquiry.needs_human %}<span class="tag warn">person first</span>{% endif %}
+    {% if enquiry.confidence is not none %}<span class="conf {{ level }}" title="model's estimate that the draft can go unedited">confidence {{ enquiry.confidence|pct }}</span>{% endif %}
+    {% if enquiry.edited %}<span class="tag">edited</span>{% endif %}
+  </div>
+</div>
+
+{% if flash %}<div class="flash ok"><div class="body">{{ flash }}</div></div>{% endif %}
+{% if error %}<div class="flash bad"><div class="body">{{ error }}</div></div>{% endif %}
+
+{% if enquiry.escalation_reasons %}
+<div class="flash warn">
+  <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2.5 20h19L12 3z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 9v5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17" r="1.1" fill="currentColor"/></svg>
+  <div class="body"><b>Check before sending</b>
+  <ul>{% for r in enquiry.escalation_reasons %}<li>{{ r }}</li>{% endfor %}</ul></div>
+</div>
+{% endif %}
+
+{% if enquiry.status == 'sent' %}
+  <div class="flash ok"><div class="body">Sent via {{ enquiry.sent_via }} to {{ enquiry.sent_to }} on {{ enquiry.sent_at|dt }}.</div></div>
+  <pre class="mail">{{ enquiry.final_text }}</pre>
+{% elif enquiry.status == 'new' %}
+  <p class="muted">Not drafted yet.</p>
+  <form hx-post="/enquiries/{{ enquiry.id }}/regenerate" hx-target="#draft-panel" hx-swap="innerHTML">
+    <button class="btn primary">Draft</button>
+  </form>
+{% else %}
+  <form id="draft-form" class="composer">
+    <div class="composer-head">
+      <div><span class="k">To</span>{{ enquiry.from_name }} &lt;{{ enquiry.from_email }}&gt;</div>
+      <div><span class="k">Subject</span>{{ enquiry.reply_subject }}</div>
+    </div>
+    <textarea name="draft_text" rows="16" spellcheck="true">{{ enquiry.draft_text }}</textarea>
+    <div class="composer-foot">
+      <button class="btn primary" hx-post="/enquiries/{{ enquiry.id }}/approve" hx-target="#draft-panel" hx-swap="innerHTML" hx-include="#draft-form">
+        <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11.5 21 4l-7.5 17-2.5-7.5L3 11.5z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+        Approve and send
+      </button>
+      <button class="btn" hx-post="/enquiries/{{ enquiry.id }}/save" hx-target="#draft-panel" hx-swap="innerHTML" hx-include="#draft-form">Save edit</button>
+      <button class="btn danger" hx-post="/enquiries/{{ enquiry.id }}/escalate" hx-target="#draft-panel" hx-swap="innerHTML" hx-include="#draft-form">Pass to a colleague</button>
+      <span class="spacer"></span>
+      <button class="btn ghost" hx-post="/enquiries/{{ enquiry.id }}/regenerate" hx-target="#draft-panel" hx-swap="innerHTML" hx-confirm="Discard this draft and generate a new one?">Regenerate</button>
+    </div>
+  </form>
+  <p class="muted small note">Source markers like [2] are removed when the email is sent. Nothing is sent until you press <b>Approve and send</b>.</p>
+{% endif %}
+
+{% if enquiry.drafted_at %}
+<p class="usage">
+  {{ enquiry.draft_model }} · {{ enquiry.llm_calls }} calls · {{ '{:,}'.format(enquiry.input_tokens) }} in / {{ '{:,}'.format(enquiry.output_tokens) }} out tokens · {{ enquiry.cost_usd|usd }} · {{ enquiry.draft_ms }} ms
+</p>
+{% endif %}
+
+{% if enquiry.model_notes %}
+<details class="notes"><summary>Model's notes</summary><pre class="mail">{{ enquiry.model_notes }}</pre></details>
+{% endif %}
+{% if enquiry.classification_reason %}
+<p class="muted small">Classifier: {{ enquiry.classification_reason }}</p>
+{% endif %}
