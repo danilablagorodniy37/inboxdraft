@@ -38,6 +38,15 @@ INLINE_SIGNOFF_RE = re.compile(
 TOKEN_RE = re.compile(r"\[?\b(EMAIL|PHONE|NINO|UTR|POSTCODE|ADDRESS|NAME)_(\d+)\b\]?")
 
 _NAME_STOPWORDS = frozenset({"The", "Our", "Your", "Team", "Ltd", "Limited", "LLP", "Accounts"})
+# First names that are also common words: matched case-sensitively so "I will pay the bill" survives.
+# fmt: off
+_NAMES_THAT_ARE_WORDS = frozenset({
+    "will", "bill", "mark", "may", "june", "april", "august", "rose", "grace", "hope",
+    "faith", "joy", "frank", "sue", "pat", "rob", "art", "guy", "jack", "ray", "dawn",
+    "summer", "max", "chase", "drew", "gene", "earl", "sunny", "penny", "holly", "ivy",
+    "amber", "ruby", "crystal", "skye", "rich", "dean", "don", "jay", "lee", "bob",
+})
+# fmt: on
 
 
 @dataclass
@@ -121,9 +130,13 @@ class Scrubber:
         return "\n".join(out) + ("\n" if text.endswith("\n") else "")
 
     def _scrub_known_names(self, text: str) -> str:
+        """The sender's name anywhere in the text, in any case ("thanks, ben"), except names that
+        are also everyday words ("will", "mark"), which only match with a capital letter."""
         names = [(orig, tok) for tok, orig in self.mapping.items() if tok.startswith("[NAME_")]
         for original, token in sorted(names, key=lambda item: -len(item[0])):
-            text = re.sub(rf"(?<![\w\[]){re.escape(original)}(?![\w\]])", token, text)
+            flags = 0 if original.lower() in _NAMES_THAT_ARE_WORDS else re.IGNORECASE
+            pattern = rf"(?<![\w\[]){re.escape(original)}(?![\w\]])"
+            text = re.sub(pattern, token, text, flags=flags)
         return text
 
 

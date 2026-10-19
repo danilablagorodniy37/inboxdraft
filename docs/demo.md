@@ -1,18 +1,24 @@
-# Demo video
+# Walkthrough
 
-[Watch the 2-minute demo](https://www.youtube.com/watch?v=[video-id]) (unlisted).
+What you see after `make demo`. No key is needed: without one, a fake model drafts from templates, so the whole flow can be clicked through on a laptop. With a key, the same screens show real drafts, confidence and cost.
 
-## What it shows
+## The review queue
 
-1. **The problem (20 s).** A shared inbox with the same questions arriving all day: fees, documents, deadlines, appointments.
-2. **The review queue (90 s).** `docker compose up`, then:
-   - a pricing enquiry arrives, the draft quotes the fee list with a `[2]` citation, the reviewer edits one line and presses Approve and send;
-   - "What the model saw": the same enquiry with the sender's name, phone and postcode replaced by placeholders;
-   - an enquiry the documents do not cover becomes a holding reply and an escalation, with the model's notes for the reviewer;
-   - a complaint is flagged "a person first" and never gets an auto-drafted answer.
-3. **The numbers (30 s).** `make evals`: the report table, the figures guard count, the cost per enquiry.
+![The queue: every enquiry with its status, category, confidence and cost](inbox.png)
 
-## Screens
+Every enquiry from the shared inbox arrives with a draft already written. The queue shows what each one is about, how confident the draft is, and which ones need a person before anything else.
 
-- `review-screen.png`: enquiry, draft and sources side by side, demo data.
-- `inbox.png`: the queue with status, category, confidence and cost per enquiry.
+## One enquiry
+
+![Review screen: the enquiry, the draft and the sources it came from, side by side](review-screen.png)
+
+1. **A pricing question.** The draft quotes the fee list with a `[2]` citation, so the reviewer can check the figure against the source in one glance, edit a line and press **Approve and send**.
+2. **What the model saw.** The same enquiry with the sender's name, phone and postcode replaced by placeholders. The real details are put back only into the finished draft.
+3. **A question the documents do not cover.** It becomes a holding reply and an escalation, with notes for the reviewer instead of a guess.
+4. **A complaint.** It is flagged "a person first" and never gets an auto-drafted answer.
+
+Nothing is sent until a person presses the button. That is a test in the repository: `tests/test_no_send_without_human.py`.
+
+## The numbers
+
+`inboxdraft evals --offline` checks privacy and retrieval on 50 enquiries without a model; see [the offline report](../evals/offline-report.md). `make evals` with a key adds the model-graded numbers: classification, escalation, an LLM judge, cost per enquiry.

@@ -116,6 +116,19 @@ def cmd_evals(args: argparse.Namespace, settings: Settings) -> None:
         report = ingest_directory(session, deps.embedder, Path(settings.knowledge_dir))
         print("ingest:", report.summary())
         session.commit()
+        if args.offline:
+            from inboxdraft.evals_offline import run_offline
+
+            out = Path(args.out if args.out != "evals/report.md" else "evals/offline-report.md")
+            offline = run_offline(session, deps.embedder, cases, settings.top_k, out)
+            print(
+                f"privacy: {offline.leaked} of {offline.pii_items} personal details left in model text\n"
+                f"retrieval: every required fact in top {offline.k} for "
+                f"{offline.retrieved_all} of {offline.eligible} enquiries; "
+                f"facts {offline.facts_found} of {offline.facts}\n"
+                f"report written to {out}"
+            )
+            return
         summary = run_evals(
             session,
             deps,
@@ -203,6 +216,11 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--labels", default="evals/labels.csv")
     p.add_argument("--limit", type=int)
     p.add_argument("--no-judge", action="store_true", help="skip the LLM judge (rules only)")
+    p.add_argument(
+        "--offline",
+        action="store_true",
+        help="privacy and retrieval checks only: no model, no key (evals/offline-report.md)",
+    )
     p.set_defaults(func=cmd_evals)
 
     p = sub.add_parser("reset", help="drop tables")

@@ -10,7 +10,7 @@ inboxdraft reads an enquiry from a shared inbox, finds the answer in the company
 
 ![Review screen on demo data](docs/review-screen.png)
 
-[2-minute demo video](docs/demo.md) · [evaluation report](evals/report.md)
+[Walkthrough](docs/demo.md) · [Offline evaluation report](evals/offline-report.md)
 
 ## Why
 
@@ -46,20 +46,22 @@ The whole pipeline is `src/inboxdraft/pipeline.py`, under 150 lines. Everything 
 
 ## Results
 
-Measured by `make evals` on the 50 synthetic enquiries in `evals/cases.jsonl` against the demo knowledge base, a fictional accountancy practice. The full table, per enquiry, is in `evals/report.md`.
+Two kinds of numbers. The first set needs no model and no key, so anyone can reproduce it in a minute. The second grades the drafts themselves and needs a model key.
 
-| Metric | Result |
+**Privacy and retrieval**, measured by `inboxdraft evals --offline` on the 50 synthetic enquiries in `evals/cases.jsonl` against the demo knowledge base, a fictional accountancy practice. Per enquiry: [evals/offline-report.md](evals/offline-report.md).
+
+| Check | Result |
 |---|---|
-| Enquiry category classified correctly | [X] of 50 |
-| Escalation decision correct (should a person look first) | [X] of 50, [N] missed |
-| Ready drafts the judge would send without edits | [X]% |
-| Ready drafts with every required fact (rule check) | [X]% |
-| Unsupported figures caught by the guard / reaching a ready draft | [N] / 0 |
-| Time per enquiry, p50 / p95 | [N] s / [N] s |
-| Cost per enquiry (classify + draft) | about $[0.00X] |
-| Emails sent during the run | 0 |
+| Personal details in the enquiries (names, emails, phone numbers) | 154 |
+| **Left in the text a model would see** | **0** |
+| Enquiries the documents can answer, with every required fact (fee, deadline, document) in the 5 chunks the draft is written from | 39 of 39 |
+| Required facts retrieved | 51 of 51 |
+| Search time per enquiry, p50 / p95 | 15 ms / 19 ms |
+| Emails sent without a person pressing Send | 0, enforced by `tests/test_no_send_without_human.py` |
 
-Models: `claude-sonnet-5-5` for drafts, `claude-haiku-5-5` for classification and as the judge, `BAAI/bge-small-en-v1.5` (local) for the index. Prices are configured values; see `.env.example`. The "send without edits" number comes from an LLM judge; `evals/labels.csv` lets a person label the first 20 drafts and the report shows the agreement.
+The privacy check is independent of the scrubber's own rules, and on its first run it found a real gap: an enquiry signed "ben" in lower case kept the name. The scrubber now matches the sender's name in any case, except first names that are everyday words ("will", "mark"), and both behaviours are tests.
+
+**Draft quality.** `make evals` with an Anthropic or OpenAI key runs the same 50 enquiries through classification and drafting and adds: category accuracy, escalation decisions (should a person look first), an LLM judge on whether the practice manager would send the draft as it is, required facts in the drafts, unsupported figures stopped by the guard, and time and cost per enquiry. `evals/labels.csv` lets a person label the first 20 drafts, and the report shows how far the judge agrees with them. Models: `claude-sonnet-5-5` for drafts, `claude-haiku-5-5` for classification and as the judge, `BAAI/bge-small-en-v1.5` (local) for the index. Prices are configured values; see `.env.example`.
 
 The enquiries, the firm and the clients are synthetic. Real inboxes are messier: expect the escalation rate to go up and the unedited rate to go down until the knowledge base covers what people actually ask.
 
@@ -102,7 +104,8 @@ The first run downloads the embedding model (about 65 MB) into the fastembed cac
 | `inboxdraft process` | Draft replies for every new enquiry |
 | `inboxdraft serve` | Review UI on http://127.0.0.1:8000 |
 | `inboxdraft demo` | All of the above in one go |
-| `inboxdraft evals` | Run the evaluation set, write `evals/report.md` |
+| `inboxdraft evals` | Run the evaluation set with the model, write `evals/report.md` |
+| `inboxdraft evals --offline` | Privacy and retrieval checks, no model and no key, write `evals/offline-report.md` |
 | `inboxdraft status` | Show provider, index, database and counts |
 | `inboxdraft reset --yes [--index-only]` | Drop tables (the index only, or everything) |
 
@@ -149,11 +152,12 @@ src/inboxdraft/
   guard.py         figures must appear in a source or the enquiry
   ingest.py        files -> sections -> embeddings
   evals.py         the harness and the report
+  evals_offline.py privacy and retrieval checks without a model
   mail/            .eml and IMAP reader, importer, SMTP/outbox sender
   web/             FastAPI + HTMX review UI
 knowledge/         demo documents (fictional accountancy practice)
 inbox/             8 demo enquiries as .eml
-evals/             cases.jsonl, labels.csv, report.md
+evals/             cases.jsonl, labels.csv, offline-report.md (report.md after a model run)
 tests/             pytest, no network and no keys needed
 ```
 

@@ -89,3 +89,19 @@ def test_demo_inbox_matches_the_demo_cases() -> None:
         case = cases[path.stem.split("-", 1)[1]]
         assert parsed.subject == case.subject and parsed.from_email == case.from_email
         assert parsed.body.strip() == case.body.strip()
+
+
+def test_offline_evals_check_privacy_and_retrieval_without_a_model(
+    indexed: Session, deps: Deps, tmp_path: Path
+) -> None:
+    from inboxdraft.evals_offline import run_offline
+
+    cases = load_cases(ROOT / "evals" / "cases.jsonl")
+    summary = run_offline(indexed, deps.embedder, cases, k=5, report_path=tmp_path / "off.md")
+    assert summary.n == len(cases)
+    assert summary.pii_items > len(cases)  # every enquiry has at least a name and an email
+    assert summary.leaked == 0
+    assert 0 < summary.eligible < len(cases)
+    report = (tmp_path / "off.md").read_text(encoding="utf-8")
+    assert "| Of those, left in the text a model would see | **0** |" in report
+    assert "| c01 |" in report

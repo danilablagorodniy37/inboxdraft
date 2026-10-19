@@ -87,3 +87,18 @@ def test_mapping_is_not_part_of_the_scrubbed_text() -> None:
     out = scrubber.scrub("grace.li@example.com")
     assert out == "[EMAIL_1]"
     assert "grace.li@example.com" not in out
+
+
+def test_lowercase_signature_name_is_scrubbed() -> None:
+    # Found by `inboxdraft evals --offline`: a one-line enquiry signed "ben" in lower case.
+    s = pii.Scrubber(from_name="Ben Walsh", from_email="ben.walsh@example.com")
+    out = s.scrub("need monthly CIS returns doing, how much? ben")
+    assert "ben" not in out.lower().replace("[name_1]", "")
+    assert out.endswith("[NAME_1]")
+
+
+def test_names_that_are_words_keep_the_word() -> None:
+    s = pii.Scrubber(from_name="Will Bill", from_email="w@example.com")
+    out = s.scrub("I will pay the bill on Friday.\n\nThanks,\nWill Bill")
+    assert "I will pay the bill on Friday." in out
+    assert "Will Bill" not in out
