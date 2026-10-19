@@ -10,7 +10,7 @@ inboxdraft reads an enquiry from a shared inbox, finds the answer in the company
 
 ![Review screen on demo data](docs/review-screen.png)
 
-[Walkthrough](docs/demo.md) · [Offline evaluation report](evals/offline-report.md)
+[Walkthrough](docs/demo.md) · [Evaluation report](evals/report.md) · [Offline privacy and retrieval report](evals/offline-report.md)
 
 ## Why
 
@@ -61,7 +61,22 @@ Two kinds of numbers. The first set needs no model and no key, so anyone can rep
 
 The privacy check is independent of the scrubber's own rules, and on its first run it found a real gap: an enquiry signed "ben" in lower case kept the name. The scrubber now matches the sender's name in any case, except first names that are everyday words ("will", "mark"), and both behaviours are tests.
 
-**Draft quality.** `make evals` with an Anthropic or OpenAI key runs the same 50 enquiries through classification and drafting and adds: category accuracy, escalation decisions (should a person look first), an LLM judge on whether the practice manager would send the draft as it is, required facts in the drafts, unsupported figures stopped by the guard, and time and cost per enquiry. `evals/labels.csv` lets a person label the first 20 drafts, and the report shows how far the judge agrees with them. Models: `claude-sonnet-5-5` for drafts, `claude-haiku-5-5` for classification and as the judge, `BAAI/bge-small-en-v1.5` (local) for the index. Prices are configured values; see `.env.example`.
+**Draft quality**, measured by `make evals` on the same 50 enquiries with real models on 19 Oct 2026: `claude-sonnet-5-5` drafts, `claude-haiku-5-5` classifies and judges, `BAAI/bge-small-en-v1.5` (local) indexes. Per enquiry: [evals/report.md](evals/report.md).
+
+| Metric | Result |
+|---|---|
+| Enquiry category classified correctly | 90% (45 of 50) |
+| Escalation decision correct (should a person look first) | 88%: 0 missed, 6 escalated that did not need it |
+| Ready drafts (no escalation) | 35 of 50 |
+| Ready drafts with every required fact (rule check) | 97% |
+| Judge: send as is / minor edit / rewrite | 69% / 20% / 11% |
+| Ready drafts where the judge flagged an invented fact | 11 of 35 |
+| Unsupported figures stopped by the guard / reaching a ready draft | 4 / 0 |
+| Time per enquiry, p50 / p95 | 5.6 s / 11.4 s |
+| Cost per enquiry (classify + draft), at the configured prices | about $0.02 (whole run $0.80 including the judge) |
+| Emails sent during the run | 0 |
+
+How to read it. The safety numbers hold: no enquiry that needed a person was drafted for, and no unsupported figure reached a ready draft, because the guard checks every number against the sources. The weak spot is the 11 drafts where the judge saw an invented fact. Those are claims without a number in them (a promise, a detail of a process), which the figures guard does not cover; that is what a person catches in review today, and the next thing to tighten. The judge is a model too: `evals/labels.csv` lets a person label the first 20 drafts, and the report shows how far the judge agrees with them. Prices are configured values; see `.env.example`.
 
 The enquiries, the firm and the clients are synthetic. Real inboxes are messier: expect the escalation rate to go up and the unedited rate to go down until the knowledge base covers what people actually ask.
 

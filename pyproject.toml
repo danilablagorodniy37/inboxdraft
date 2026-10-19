@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "inboxdraft"
-version = "0.2.0"
+version = "0.2.1"
 description = "AI-drafted email replies from your own documents. A person sends every email."
 readme = "README.md"
 license = { text = "MIT" }

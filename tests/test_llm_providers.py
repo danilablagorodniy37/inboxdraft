@@ -98,3 +98,41 @@ def test_get_llm_picks_the_provider_from_the_keys(monkeypatch) -> None:
     assert anthropic.name == "anthropic"
     with pytest.raises(ValueError, match="unknown LLM_PROVIDER"):
         get_llm(Settings(_env_file=None, llm_provider="nope"))
+
+
+def test_anthropic_falls_back_to_auto_when_the_model_rejects_a_forced_tool(monkeypatch) -> None:
+    # claude-sonnet-5-5 answers 400 "tool_choice: type tool and any are not supported".
+    import anthropic
+    import httpx
+
+    calls: list[dict] = []
+    block = types.SimpleNamespace(type="tool_use", input={"category": "pricing"})
+
+    class Messages:
+        def create(self, **kwargs):
+            calls.append(kwargs)
+            if kwargs["tool_choice"]["type"] == "tool":
+                raise anthropic.BadRequestError(
+                    'tool_choice: type "tool" and "any" are not supported for this model.',
+                    response=httpx.Response(400, request=httpx.Request("POST", "https://x")),
+                    body=None,
+                )
+            return types.SimpleNamespace(
+                content=[block], usage=types.SimpleNamespace(input_tokens=20, output_tokens=8)
+            )
+
+    class Client:
+        def __init__(self, api_key=None):
+            self.messages = Messages()
+
+    monkeypatch.setattr("anthropic.Anthropic", Client)
+    monkeypatch.setattr(AnthropicLLM, "_auto_only", set())
+    llm = AnthropicLLM("k")
+    kwargs = dict(system="sys", user="u", tool_name="draft_reply", description="d", schema=SCHEMA)
+    result, usage = llm.structured(model="claude-sonnet-5-5", **kwargs)
+    assert result == {"category": "pricing"} and usage == Usage("claude-sonnet-5-5", 20, 8)
+    assert [c["tool_choice"]["type"] for c in calls] == ["tool", "auto"]
+    assert "draft_reply" in calls[1]["system"]
+    # remembered: the next call goes straight to auto
+    llm.structured(model="claude-sonnet-5-5", **kwargs)
+    assert [c["tool_choice"]["type"] for c in calls] == ["tool", "auto", "auto"]

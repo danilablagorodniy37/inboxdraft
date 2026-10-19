@@ -42,11 +42,18 @@ class LLM(Protocol):
 
 
 class AnthropicLLM:
+    """Forces the tool where the model allows it. Some models reject a forced `tool_choice`
+    ("type tool and any are not supported for this model"); for those the call is repeated with
+    `tool_choice: auto` and an explicit instruction, and the model is remembered so later calls
+    go straight to that mode. Tokens of every attempt are counted, so the cost line stays true."""
+
     name = "anthropic"
+    _auto_only: set[str] = set()
 
     def __init__(self, api_key: str | None) -> None:
         import anthropic
 
+        self._anthropic = anthropic
         self._client = anthropic.Anthropic(api_key=api_key)
 
     def structured(
@@ -60,18 +67,38 @@ class AnthropicLLM:
         schema: dict[str, Any],
         max_tokens: int = 1024,
     ) -> tuple[dict[str, Any], Usage]:
-        response = self._client.messages.create(
-            model=model,
-            max_tokens=max_tokens,
-            system=system,
-            messages=[{"role": "user", "content": user}],
-            tools=[{"name": tool_name, "description": description, "input_schema": schema}],
-            tool_choice={"type": "tool", "name": tool_name},
-        )
-        for block in response.content:
-            if getattr(block, "type", "") == "tool_use":
-                usage = Usage(model, response.usage.input_tokens, response.usage.output_tokens)
-                return dict(block.input), usage
+        tools = [{"name": tool_name, "description": description, "input_schema": schema}]
+        tokens_in = tokens_out = 0
+        forced = model not in self._auto_only
+        for _attempt in range(3):
+            if forced:
+                choice = {"type": "tool", "name": tool_name}
+                prompt = system
+            else:
+                choice = {"type": "auto"}
+                prompt = f"{system}\n\nAnswer only by calling the `{tool_name}` tool, exactly once."
+            try:
+                response = self._client.messages.create(
+                    model=model,
+                    max_tokens=max_tokens,
+                    system=prompt,
+                    messages=[{"role": "user", "content": user}],
+                    tools=tools,
+                    tool_choice=choice,
+                )
+            except self._anthropic.BadRequestError as e:
+                if forced and "tool_choice" in str(e):
+                    self._auto_only.add(model)
+                    forced = False
+                    continue
+                raise
+            tokens_in += response.usage.input_tokens
+            tokens_out += response.usage.output_tokens
+            for block in response.content:
+                if getattr(block, "type", "") == "tool_use":
+                    return dict(block.input), Usage(model, tokens_in, tokens_out)
+            if forced:
+                break
         raise LLMError(f"{model} returned no tool_use block")
 
 

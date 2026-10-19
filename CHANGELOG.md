@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.1 (19 Oct 2026)
+
+### Fixed
+- `claude-sonnet-5-5` rejects a forced `tool_choice` (HTTP 400: type tool and any are not supported for this model), so every draft failed. The Anthropic provider now falls back to `tool_choice: auto` with an explicit instruction to call the tool, remembers the model, and counts the tokens of every attempt in the cost line. Test with a stub that answers 400 the way the API does.
+
+### Added
+- First model-graded evaluation run, 19 Oct 2026, in `evals/report.md` and the README: 90% category accuracy, 0 missed escalations, 69% of ready drafts sendable as they are, 0 unsupported figures in ready drafts, 11 of 35 ready drafts with an invented non-numeric claim flagged by the judge, about $0.02 per enquiry.
+
 ## 0.2.0 (19 Oct 2026)
 
 ### Added
